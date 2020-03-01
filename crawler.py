@@ -127,3 +127,45 @@ class JockeyClub:
             table.loc[:, col_name] = col_value
         return table
 
+    def crawl(self) -> pd.DataFrame:
+        """Crawl the horse race results on http://www.dostihyjc.cz/. Extracts table results with headers.
+        
+        Returns:
+            pd.DataFrame: final formatted pandas dataframe with all items in tables and new features
+        """
+        ## 1. Create final df
+        cols = [
+            "finish_order",
+            "horse_name",
+            "weight",
+            "jockey",
+            "statement",
+            "time",
+            "starting_num",
+            "trainer",
+            "evq",
+            "race_intraday_order",
+            "race_start",
+            "race_id",
+            "race_name",
+            "race_type",
+            "horse_age_limit",
+            "race_length",
+            "track_quality",
+        ]
+        df = pd.DataFrame(columns=cols)
+        ## 2. append tables to final df
+        for table_url in self.table_urls:
+            # Get all races in given year
+            race_urls = self._read_races(table_url)
+            for race_url in race_urls:
+                ## GET TABLES
+                tables = self._read_tables(race_url)
+                heads = self._read_heads(race_url)
+                ## PREP TABLES
+                for table, head in zip(tables, heads):
+                    head = self._preprocess_head(head)
+                    table = self._preprocess_table(table, head)
+                    df = pd.concat([df, table])
+        return df
+
