@@ -7,6 +7,11 @@ from typing import Union
 
 
 class JockeyClub:
+    """Crawl the horse race results on http://www.dostihyjc.cz/. 
+    Extracts table results with headers and jockey cards information. 
+    One year's races take about 3 minutes.
+    """
+
     def __init__(self, start_year: Union[int, str], end_year: Union[int, str]):
         # Create a list of urls (of years) to scrape data from
         table_urls = [
@@ -129,7 +134,7 @@ class JockeyClub:
         return table
 
     def crawl_races(self) -> pd.DataFrame:
-        """Crawl the horse race results on http://www.dostihyjc.cz/. Extracts table results with headers. One year's races take about 3 minutes.
+        """Crawl horse race data.
         
         Returns:
             pd.DataFrame: final formatted pandas dataframe with all items in tables and new features
