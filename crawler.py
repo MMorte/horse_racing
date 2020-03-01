@@ -49,7 +49,7 @@ class JockeyClub:
 
     def _preprocess_head(self, head:list) -> dict:
         """Extract features in a suitable format using regex and basic python. 
-        
+
         Args:
             head (list): a single item from table_heads (_read_heads)
         
@@ -81,4 +81,19 @@ class JockeyClub:
             'track_quality': track_quality
         }
         return parsed_head
+
+
+    def _read_tables(self, url: str) -> list:
+        """Just a simple function to stay consistent with the _read_heads_ logic etc. 
+        
+        Args:
+            url (str): race_url
+        
+        Returns:
+            list: list of pd.DataFrames
+        """
+        # results are just the following tables
+        tables = pd.read_html(url, encoding='utf-8')
+        tables = tables[4:-2]
+        return tables
 
