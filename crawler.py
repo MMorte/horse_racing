@@ -8,6 +8,7 @@ from typing import Union
 
 class JockeyClub:
     def __init__(self, start_year: Union[int, str], end_year: Union[int, str]):
+        # Create a list of urls (of years) to scrape data from
         table_urls = [
             f"http://www.dostihyjc.cz/vysledky.php?stat=1&amp;rok={year}"
             for year in range(start_year, end_year + 1)
@@ -127,8 +128,8 @@ class JockeyClub:
             table.loc[:, col_name] = col_value
         return table
 
-    def crawl(self) -> pd.DataFrame:
-        """Crawl the horse race results on http://www.dostihyjc.cz/. Extracts table results with headers.
+    def crawl_races(self) -> pd.DataFrame:
+        """Crawl the horse race results on http://www.dostihyjc.cz/. Extracts table results with headers. One year's races take about 3 minutes.
         
         Returns:
             pd.DataFrame: final formatted pandas dataframe with all items in tables and new features
