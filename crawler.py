@@ -45,3 +45,40 @@ class JockeyClub:
         table_heads = soup.find_all('div', {'class':'hlavicka_dostihu'})
         table_heads = [table_head.contents for table_head in table_heads]
         return table_heads
+
+
+    def _preprocess_head(self, head:list) -> dict:
+        """Extract features in a suitable format using regex and basic python. 
+        
+        Args:
+            head (list): a single item from table_heads (_read_heads)
+        
+        Returns:
+            dict: parsed header to be used as new feature
+        """
+        race_intraday_order_raw = head[0].split('start')[0]
+        race_intraday_order = re.search(r'\d+', race_intraday_order_raw).group()
+        race_start = head[0].split('start')[1].strip()
+        race_id = head[2].strip()
+        race_name = head[3].text
+        race_type = head[5].split('-')[0].strip()
+        horse_age_limit = head[5].split('-')[1].split(',')[-1].strip()
+        race_length_raw = head[5].split('-')[1].split(',')[0]
+        race_length = re.search(r'\d+', race_length_raw).group()
+        track_quality_raw = head[-1]
+        if 'Stav dráhy' in track_quality_raw:
+            track_quality = re.search(r'\d\.\d', track_quality_raw).group()
+        else:
+            track_quality = None
+        parsed_head = {
+            'race_intraday_order': race_intraday_order,
+            'race_start': race_start,
+            'race_id': race_id,
+            'race_name': race_name,
+            'race_type': race_type,
+            'horse_age_limit': horse_age_limit,
+            'race_length': race_length,
+            'track_quality': track_quality
+        }
+        return parsed_head
+
