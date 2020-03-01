@@ -13,4 +13,20 @@ class JockeyClubCrawler:
         ]
         self.table_urls = table_urls
 
+    def _read_races(self, url: str) -> list:
+        """Use requests with bs4 to return a list of urls of every race that happened in a given year."
+        
+        Args:
+            url (str): a url from the table_urls (link for given year)
+        
+        Returns:
+            list: usually 52 urls for each week with a horse race
+        """
+        resp = requests.get(url).text
+        soup = BeautifulSoup(resp, 'html.parser')
+        # construct individual racing day urls
+        race_urls = soup.find_all('a', {'class':'button-left'}, href=True)
+        race_urls = race_urls[8:]
+        race_urls = ['http://www.dostihyjc.cz/' + race_url['href'] for race_url in race_urls]
+        return race_urls
 
