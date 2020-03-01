@@ -12,7 +12,7 @@ class JockeyClub:
     One year's races take about 3 minutes.
     """
 
-    def __init__(self, start_year: Union[int, str], end_year: Union[int, str]):
+    def __init__(self, start_year=2015, end_year=2019):
         # Create a list of urls (of years) to scrape data from
         table_urls = [
             f"http://www.dostihyjc.cz/vysledky.php?stat=1&amp;rok={year}"
