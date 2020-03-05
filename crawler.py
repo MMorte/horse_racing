@@ -3,7 +3,6 @@ import requests
 import re
 
 from bs4 import BeautifulSoup
-from typing import Union
 
 
 class JockeyClub:
@@ -12,7 +11,8 @@ class JockeyClub:
     One year's races take about 3 minutes.
     """
 
-    def __init__(self, start_year=2015, end_year=2019):
+    def __init__(self, start_year=1989, end_year=2019):
+        # First race recorder dates back to 2. 4. 1989
         # Create a list of urls (of years) to scrape data from
         table_urls = [
             f"http://www.dostihyjc.cz/vysledky.php?stat=1&amp;rok={year}"
@@ -20,7 +20,7 @@ class JockeyClub:
         ]
         self.table_urls = table_urls
 
-    def _read_races(self, url: str) -> list:
+    def _read_race_urls(self, url: str) -> list:
         """Use requests with bs4 to return a list of urls of every race that happened in a given year."
         
         Args:
@@ -39,7 +39,7 @@ class JockeyClub:
         ]
         return race_urls
 
-    def _read_heads(self, url: str) -> list:
+    def _read_race_headers(self, url: str) -> list:
         """Read headers of tables (one table = one race) to extract additional data/columns/features.
         
         Args:
@@ -54,7 +54,7 @@ class JockeyClub:
         table_heads = [table_head.contents for table_head in table_heads]
         return table_heads
 
-    def _preprocess_head(self, head: list) -> dict:
+    def _preprocess_race_headers(self, head: list) -> dict:
         """Extract features in a suitable format using regex and basic python. 
 
         Args:
@@ -89,8 +89,8 @@ class JockeyClub:
         }
         return parsed_head
 
-    def _read_tables(self, url: str) -> list:
-        """Just a simple function to stay consistent with the _read_heads_ logic etc. 
+    def _read_race_tables(self, url: str) -> list:
+        """Just a simple function to stay consistent with the _read_race_headers_ logic etc. 
         
         Args:
             url (str): race_url
@@ -103,17 +103,17 @@ class JockeyClub:
         tables = tables[4:-2]
         return tables
 
-    def _preprocess_table(self, table: pd.DataFrame, head: dict) -> pd.DataFrame:
-        """[summary]
+    def _preprocess_race_table(self, table: pd.DataFrame, head: dict) -> pd.DataFrame:
+        """Renames and reshapes the race horse results table a bit, appends features extracted from headers
         
         Args:
             table (pd.DataFrame): table from read_tables
             head (dict): head from read_heads preprocessed by preprocess_head
         
         Returns:
-            pd.DataFrame: returns formatted dataframe with features (no jockey information yet)
+            pd.DataFrame: returns formatted dataframe with features
         """
-        # remove column row
+        # remove row containing column names
         table = table.loc[1:, :]
         # set column names for concat (cols before adding head)
         cols = [
@@ -163,15 +163,15 @@ class JockeyClub:
         ## 2. append tables to final df
         for table_url in self.table_urls:
             # Get all races in given year
-            race_urls = self._read_races(table_url)
+            race_urls = self._read_race_urls(table_url)
             for race_url in race_urls:
                 ## GET TABLES
-                tables = self._read_tables(race_url)
-                heads = self._read_heads(race_url)
+                tables = self._read_race_tables(race_url)
+                heads = self._read_race_headers(race_url)
                 ## PREP TABLES
                 for table, head in zip(tables, heads):
-                    head = self._preprocess_head(head)
-                    table = self._preprocess_table(table, head)
+                    head = self._preprocess_race_headers(head)
+                    table = self._preprocess_race_tables(table, head)
                     df = pd.concat([df, table])
         return df
 
