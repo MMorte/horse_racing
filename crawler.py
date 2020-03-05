@@ -40,7 +40,7 @@ class JockeyClub:
         ]
         return race_urls
 
-    def _get_race_headers(self, url: str) -> list:
+    def _get_result_headers(self, url: str) -> list:
         """Read headers of tables (one table = one race) to extract additional data/columns/features.
         
         Args:
@@ -55,8 +55,8 @@ class JockeyClub:
         table_heads = [table_head.contents for table_head in table_heads]
         return table_heads
 
-    def _get_race_tables(self, url: str) -> list:
-        """Just a simple function to stay consistent with the _get_race_headers logic etc. 
+    def _get_race_results(self, url: str) -> list:
+        """Just a simple function to stay consistent with the _get_result_headers logic etc. 
         
         Args:
             url (str): race_url
@@ -134,7 +134,7 @@ class JockeyClub:
         """Extract features in a suitable format using regex and basic python. 
 
         Args:
-            head (list): a single item from table_heads (_get_race_headers)
+            head (list): a single item from table_heads (_get_result_headers)
         
         Returns:
             dict: parsed header to be used as new feature
@@ -165,7 +165,7 @@ class JockeyClub:
         }
         return parsed_head
 
-    def _preprocess_race_table(self, table: pd.DataFrame, head: dict) -> pd.DataFrame:
+    def _preprocess_race_results(self, table: pd.DataFrame, head: dict) -> pd.DataFrame:
         """Renames and reshapes the race horse results table a bit, appends features extracted from headers
         
         Args:
@@ -229,12 +229,38 @@ class JockeyClub:
             race_urls = self._get_race_urls(table_url)
             for race_url in race_urls:
                 ## GET TABLES
-                tables = self._get_race_tables(race_url)
-                heads = self._get_race_headers(race_url)
+                tables = self._get_race_results(race_url)
+                heads = self._get_result_headers(race_url)
                 ## PREP TABLES
                 for table, head in zip(tables, heads):
-                    head = self._preprocess_race_header(head)
-                    table = self._preprocess_race_table(table, head)
+                    head = self._preprocess_result_header(head)
+                    table = self._preprocess_race_result(table, head)
                     df = pd.concat([df, table])
         return df
+
+    @allow_logging
+    def crawl_handicaps(self) -> pd.DataFrame:
+        """Crawl horse tables to extract their handicap in individual races.
+        
+        Returns:
+            pd.DataFrame: dataframe containing all horses and their handicaps
+        """
+        # output dataframe
+        horse_handicaps = pd.DataFrame()
+        horse_urls = self._get_horse_urls()
+        for horse_url in horse_urls:
+            horse_handicap = pd.read_html(horse_url, encoding="utf-8")[0]
+            horse_handicap.columns = [
+                "date",
+                "handicap",
+                "race_name",
+                "race_type",
+                "finish_order",
+            ]
+            # .iloc[0, 0] => first row is the horses name
+            horse_handicap = horse_handicap.assign(horse_name=horse_handicap.iloc[0, 0])
+            # second row are column names so we get rid of them
+            horse_handicap = horse_handicap.loc[2:, :]
+            horse_handicaps = pd.concat([horse_handicaps, horse_handicap])
+        return horse_handicaps
 
