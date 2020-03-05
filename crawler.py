@@ -3,6 +3,7 @@ import requests
 import re
 
 from bs4 import BeautifulSoup
+from decorators import allow_logging
 
 
 class JockeyClub:
@@ -133,6 +134,7 @@ class JockeyClub:
             table.loc[:, col_name] = col_value
         return table
 
+    @allow_logging
     def crawl_races(self) -> pd.DataFrame:
         """Crawl horse race data.
         
