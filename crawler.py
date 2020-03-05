@@ -20,7 +20,7 @@ class JockeyClub:
         ]
         self.table_urls = table_urls
 
-    def _read_race_urls(self, url: str) -> list:
+    def _get_race_urls(self, url: str) -> list:
         """Use requests with bs4 to return a list of urls of every race that happened in a given year."
         
         Args:
@@ -39,7 +39,7 @@ class JockeyClub:
         ]
         return race_urls
 
-    def _read_race_headers(self, url: str) -> list:
+    def _get_race_headers(self, url: str) -> list:
         """Read headers of tables (one table = one race) to extract additional data/columns/features.
         
         Args:
@@ -54,11 +54,11 @@ class JockeyClub:
         table_heads = [table_head.contents for table_head in table_heads]
         return table_heads
 
-    def _preprocess_race_headers(self, head: list) -> dict:
+    def _preprocess_race_header(self, head: list) -> dict:
         """Extract features in a suitable format using regex and basic python. 
 
         Args:
-            head (list): a single item from table_heads (_read_heads)
+            head (list): a single item from table_heads (_get_race_headers)
         
         Returns:
             dict: parsed header to be used as new feature
@@ -89,8 +89,8 @@ class JockeyClub:
         }
         return parsed_head
 
-    def _read_race_tables(self, url: str) -> list:
-        """Just a simple function to stay consistent with the _read_race_headers_ logic etc. 
+    def _get_race_tables(self, url: str) -> list:
+        """Just a simple function to stay consistent with the _get_race_headers logic etc. 
         
         Args:
             url (str): race_url
@@ -108,7 +108,7 @@ class JockeyClub:
         
         Args:
             table (pd.DataFrame): table from read_tables
-            head (dict): head from read_heads preprocessed by preprocess_head
+            head (dict): head from read_heads preprocessed by preprocess_race_header
         
         Returns:
             pd.DataFrame: returns formatted dataframe with features
@@ -163,15 +163,15 @@ class JockeyClub:
         ## 2. append tables to final df
         for table_url in self.table_urls:
             # Get all races in given year
-            race_urls = self._read_race_urls(table_url)
+            race_urls = self._get_race_urls(table_url)
             for race_url in race_urls:
                 ## GET TABLES
-                tables = self._read_race_tables(race_url)
-                heads = self._read_race_headers(race_url)
+                tables = self._get_race_tables(race_url)
+                heads = self._get_race_headers(race_url)
                 ## PREP TABLES
                 for table, head in zip(tables, heads):
-                    head = self._preprocess_race_headers(head)
-                    table = self._preprocess_race_tables(table, head)
+                    head = self._preprocess_race_header(head)
+                    table = self._preprocess_race_table(table, head)
                     df = pd.concat([df, table])
         return df
 
