@@ -55,6 +55,81 @@ class JockeyClub:
         table_heads = [table_head.contents for table_head in table_heads]
         return table_heads
 
+    def _get_race_tables(self, url: str) -> list:
+        """Just a simple function to stay consistent with the _get_race_headers logic etc. 
+        
+        Args:
+            url (str): race_url
+        
+        Returns:
+            list: list of pd.DataFrames
+        """
+        # results are just the following tables
+        tables = pd.read_html(url, encoding="utf-8")
+        tables = tables[4:-2]
+        return tables
+
+    def _get_horse_urls(self) -> list:
+        """Crawls horse statistics and extracts a list of urls with tables containing their handicaps on various dates (races).
+        
+        Returns:
+            list: urls of horse handicaps (strings) such as - 'http://www.dostihyjc.cz/handicap_det.php?idkun=89787'
+        """
+        # base url containing data about horses including their handicaps
+        url = "http://dostihyjc.cz/statistiky.php?stranka=22"
+
+        # payloads to submit as data in requests.post
+        # needed to access values behing dropdowns
+        payloads = [
+            ## includes all horses with races on the site
+            # Rovina (not hurdle) race, horses of age 3
+            {
+                "x_stranka": 22,
+                "s_rok": 2020,
+                "s_typ": 1,
+                "s_vek": 3,
+                "obdobi": 1,
+                "chgorder": "zobrazit",
+            },
+            # same as above but horses age 4 and above
+            {
+                "x_stranka": 22,
+                "s_rok": 2020,
+                "s_typ": 1,
+                "s_vek": 4,
+                "obdobi": 1,
+                "chgorder": "zobrazit",
+            },
+            # hurdle/steeple/... horses aged 4 and above
+            {
+                "x_stranka": 22,
+                "s_rok": 2020,
+                "s_typ": 2,
+                "s_vek": 4,
+                "obdobi": 1,
+                "chgorder": "zobrazit",
+            },
+        ]
+        # list to append collected horse ids to
+        horse_ids = []
+        # loop over horse age/race type variants
+        for payload in payloads:
+            r = requests.post(url, data=payload)
+            soup = BeautifulSoup(r.text, "html.parser")
+            # ids are under a onclick parameter in tags: td#ht > span#text67
+            # use regex to extract id from url
+            td_tags = soup.find_all("td", {"class": "ht"})
+            for td_tag in td_tags:
+                span_tags = td_tag.find_all("span", {"class": "text67"})
+                for span_tag in span_tags:
+                    horse_url = span_tag["onclick"]
+                    horse_id = re.search(r"idkun=(\d+)", horse_url).group(1)
+                    horse_ids.append(horse_id)
+        horse_urls = [
+            "http://www.dostihyjc.cz/handicap_det.php?idkun=" + _id for _id in horse_ids
+        ]
+        return horse_urls
+
     def _preprocess_race_header(self, head: list) -> dict:
         """Extract features in a suitable format using regex and basic python. 
 
@@ -89,20 +164,6 @@ class JockeyClub:
             "track_quality": track_quality,
         }
         return parsed_head
-
-    def _get_race_tables(self, url: str) -> list:
-        """Just a simple function to stay consistent with the _get_race_headers logic etc. 
-        
-        Args:
-            url (str): race_url
-        
-        Returns:
-            list: list of pd.DataFrames
-        """
-        # results are just the following tables
-        tables = pd.read_html(url, encoding="utf-8")
-        tables = tables[4:-2]
-        return tables
 
     def _preprocess_race_table(self, table: pd.DataFrame, head: dict) -> pd.DataFrame:
         """Renames and reshapes the race horse results table a bit, appends features extracted from headers
