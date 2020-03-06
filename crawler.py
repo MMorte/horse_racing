@@ -42,18 +42,26 @@ class JockeyClub:
 
     def _get_result_headers(self, url: str) -> list:
         """Read headers of tables (one table = one race) to extract additional data/columns/features.
-        
+
         Args:
-            url (str): Race (day url) url from _read_races
-        
+            url (str): Race (day url) url from _get_race_urls
+
         Returns:
             list: list containing raw text data from headers
         """
         r = requests.get(url).text
         soup = BeautifulSoup(r, "html.parser")
-        table_heads = soup.find_all("div", {"class": "hlavicka_dostihu"})
-        table_heads = [table_head.contents for table_head in table_heads]
-        return table_heads
+        ## extracting extra features, cant get them elsewhere
+        # Title is parsed here
+        # there's only one title per race_url, carrying it all the way to the crawl_races procedure is ineffective
+        # ergo i didnt figure out a better way
+        title = soup.find("div", {"class": "text8"}).string
+        self._race_date = re.search(r"\d+\.\d+\.\d+", title).group()
+        self._race_city = title.split(" - ")[-1]
+        # parse header information
+        header_contents = soup.find_all("div", {"class": "hlavicka_dostihu"})
+        headers = [header_content.contents for header_content in header_contents]
+        return headers
 
     def _get_race_results(self, url: str) -> list:
         """Just a simple function to stay consistent with the _get_result_headers logic etc. 
@@ -65,7 +73,7 @@ class JockeyClub:
             list: list of pd.DataFrames
         """
         # results are just the following tables
-        tables = pd.read_html(url, encoding="utf-8")
+        tables = pd.read_html(url, encoding="utf-8", decimal=",")
         tables = tables[4:-2]
         return tables
 
@@ -130,7 +138,7 @@ class JockeyClub:
         ]
         return horse_urls
 
-    def _preprocess_race_header(self, head: list) -> dict:
+    def _preprocess_result_header(self, head: list) -> dict:
         """Extract features in a suitable format using regex and basic python. 
 
         Args:
@@ -165,7 +173,7 @@ class JockeyClub:
         }
         return parsed_head
 
-    def _preprocess_race_results(self, table: pd.DataFrame, head: dict) -> pd.DataFrame:
+    def _preprocess_race_result(self, table: pd.DataFrame, head: dict) -> pd.DataFrame:
         """Renames and reshapes the race horse results table a bit, appends features extracted from headers
         
         Args:
@@ -187,10 +195,12 @@ class JockeyClub:
             "time",
             "starting_num",
             "trainer",
-            "evq",
+            "win_odds",
         ]
         table.columns = cols
         # create new_features
+        table = table.assign(race_date=self._race_date)
+        table = table.assign(race_city=self._race_city)
         for col_name, col_value in head.items():
             table.loc[:, col_name] = col_value
         return table
@@ -203,26 +213,7 @@ class JockeyClub:
             pd.DataFrame: final formatted pandas dataframe with all items in tables and new features
         """
         ## 1. Create final df
-        cols = [
-            "finish_order",
-            "horse_name",
-            "weight",
-            "jockey",
-            "statement",
-            "time",
-            "starting_num",
-            "trainer",
-            "evq",
-            "race_intraday_order",
-            "race_start",
-            "race_id",
-            "race_name",
-            "race_type",
-            "horse_age_limit",
-            "race_length",
-            "track_quality",
-        ]
-        df = pd.DataFrame(columns=cols)
+        df = pd.DataFrame()
         ## 2. append tables to final df
         for table_url in self.table_urls:
             # Get all races in given year
@@ -230,11 +221,11 @@ class JockeyClub:
             for race_url in race_urls:
                 ## GET TABLES
                 tables = self._get_race_results(race_url)
-                heads = self._get_result_headers(race_url)
+                headers = self._get_result_headers(race_url)
                 ## PREP TABLES
-                for table, head in zip(tables, heads):
-                    head = self._preprocess_result_header(head)
-                    table = self._preprocess_race_result(table, head)
+                for table, header in zip(tables, headers):
+                    header = self._preprocess_result_header(header)
+                    table = self._preprocess_race_result(table, header)
                     df = pd.concat([df, table])
         return df
 
@@ -249,7 +240,7 @@ class JockeyClub:
         horse_handicaps = pd.DataFrame()
         horse_urls = self._get_horse_urls()
         for horse_url in horse_urls:
-            horse_handicap = pd.read_html(horse_url, encoding="utf-8")[0]
+            horse_handicap = pd.read_html(horse_url, encoding="utf-8", decimal=",")[0]
             horse_handicap.columns = [
                 "date",
                 "handicap",
