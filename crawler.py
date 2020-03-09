@@ -52,12 +52,6 @@ class JockeyClub:
         r = requests.get(url).text
         soup = BeautifulSoup(r, "html.parser")
         ## extracting extra features, cant get them elsewhere
-        # Title is parsed here
-        # there's only one title per race_url, carrying it all the way to the crawl_races procedure is ineffective
-        # ergo i didnt figure out a better way
-        title = soup.find("div", {"class": "text8"}).string
-        self._race_date = re.search(r"\d+\.\d+\.\d+", title).group()
-        self._race_city = title.split(" - ")[-1]
         # parse header information
         header_contents = soup.find_all("div", {"class": "hlavicka_dostihu"})
         headers = [header_content.contents for header_content in header_contents]
@@ -75,6 +69,16 @@ class JockeyClub:
         # results are just the following tables
         tables = pd.read_html(url, encoding="utf-8", decimal=",")
         tables = tables[4:-2]
+        # Title is parsed here to get date and city
+        r = requests.get(url).text
+        soup = BeautifulSoup(r, "html.parser")
+        title = soup.find("div", {"class": "text8"}).string
+        race_date = re.search(r"\d+\.\d+\.\d+", title).group()
+        race_city = title.split(" - ")[-1]
+        # append to tables
+        tables = [
+            table.assign(race_date=race_date, race_city=race_city) for table in tables
+        ]
         return tables
 
     def _get_horse_urls(self) -> list:
@@ -196,11 +200,11 @@ class JockeyClub:
             "starting_num",
             "trainer",
             "win_odds",
+            "race_date",
+            "race_city",
         ]
         table.columns = cols
         # create new_features
-        table = table.assign(race_date=self._race_date)
-        table = table.assign(race_city=self._race_city)
         for col_name, col_value in head.items():
             table.loc[:, col_name] = col_value
         return table
@@ -248,7 +252,7 @@ class JockeyClub:
                 "race_type",
                 "finish_order",
             ]
-            # .iloc[0, 0] => first row is the horses name
+            # .iloc[0, 0] => first row == horse name
             horse_handicap = horse_handicap.assign(horse_name=horse_handicap.iloc[0, 0])
             # second row are column names so we get rid of them
             horse_handicap = horse_handicap.loc[2:, :]
